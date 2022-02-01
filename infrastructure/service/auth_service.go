@@ -14,7 +14,7 @@ import (
 type AuthInterface interface {
 	CreateAuth(context.Context, uint64, *entity.TokenDetails) error
 	FetchAuth(context.Context, string) (uint64, error)
-	DeleteRefresh(context.Context, string) error
+	DeleteRefresh(context.Context, *entity.RefreshDetails) error
 	DeleteTokens(context.Context, *entity.AccessDetails) error
 }
 
@@ -58,7 +58,7 @@ func (as *AuthService) FetchAuth(ctx context.Context, tokenUuid string) (uint64,
 	return userID, nil
 }
 
-//Once a user row in the token table
+// Once a user row in the token table
 func (as *AuthService) DeleteTokens(ctx context.Context, authD *entity.AccessDetails) error {
 	//get the refresh uuid
 	refreshUuid := fmt.Sprintf("%s++%d", authD.TokenUuid, authD.UserId)
@@ -79,9 +79,9 @@ func (as *AuthService) DeleteTokens(ctx context.Context, authD *entity.AccessDet
 	return nil
 }
 
-func (as *AuthService) DeleteRefresh(ctx context.Context, refreshUuid string) error {
+func (as *AuthService) DeleteRefresh(ctx context.Context, authD *entity.RefreshDetails) error {
 	//delete refresh token
-	if deleted, err := as.client.Del(ctx, refreshUuid).Result(); err != nil || deleted == 0 {
+	if deleted, err := as.client.Del(ctx, authD.TokenUuid).Result(); err != nil || deleted == 0 {
 		return err
 	}
 

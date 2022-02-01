@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/TesyarRAz/testes/infrastructure/security"
+	"gorm.io/gorm"
 )
 
 type User struct {
@@ -25,7 +26,7 @@ type PublicUser struct {
 	LastName  string `gorm:"not null" json:"last_name"`
 }
 
-func (u *User) BeforeSave() error {
+func (u *User) BeforeSave(*gorm.DB) error {
 	hashedPassword, err := security.Hash(u.Password)
 
 	if err != nil {

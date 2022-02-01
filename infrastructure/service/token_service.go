@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -15,8 +14,10 @@ import (
 )
 
 type TokenInterface interface {
-	CreateToken(userid uint64) (*entity.TokenDetails, error)
-	ExtractTokenMetadata(*http.Request) (*entity.AccessDetails, error)
+	CreateToken(uint64) (*entity.TokenDetails, error)
+
+	ExtractAccessTokenMetadata(map[string]string) (*entity.AccessDetails, error)
+	ExtractRefreshTokenMetadata(map[string]string) (*entity.RefreshDetails, error)
 }
 
 type TokenService struct {
@@ -66,7 +67,67 @@ func (t *TokenService) CreateToken(userid uint64) (*entity.TokenDetails, error) 
 	return td, nil
 }
 
-func VerifyToken(r *http.Request) (jwt.Token, error) {
+func (t *TokenService) ExtractAccessTokenMetadata(r map[string]string) (*entity.AccessDetails, error) {
+	var (
+		token        jwt.Token
+		accessUuid   interface{}
+		userIdString interface{}
+		userId       uint64
+
+		err error
+		ok  bool
+	)
+
+	if token, err = VerifyAccessToken(r); err != nil {
+		return nil, err
+	}
+	if accessUuid, ok = token.Get("access_uuid"); !ok {
+		return nil, err
+	}
+	if userIdString, ok = token.Get("user_id"); !ok {
+		return nil, err
+	}
+	if userId, err = strconv.ParseUint(fmt.Sprintf("%.f", userIdString), 10, 64); err != nil {
+		return nil, err
+	}
+
+	return &entity.AccessDetails{
+		TokenUuid: accessUuid.(string),
+		UserId:    userId,
+	}, nil
+}
+
+func (t *TokenService) ExtractRefreshTokenMetadata(r map[string]string) (*entity.RefreshDetails, error) {
+	var (
+		token        jwt.Token
+		refreshUuid  interface{}
+		userIdString interface{}
+		userId       uint64
+
+		err error
+		ok  bool
+	)
+
+	if token, err = VerifyAccessToken(r); err != nil {
+		return nil, err
+	}
+
+	if refreshUuid, ok = token.Get("refresh_uuid"); !ok {
+		return nil, err
+	}
+	if userIdString, ok = token.Get("user_id"); !ok {
+		return nil, err
+	}
+	if userId, err = strconv.ParseUint(fmt.Sprintf("%.f", userIdString), 10, 64); err != nil {
+		return nil, err
+	}
+	return &entity.RefreshDetails{
+		TokenUuid: refreshUuid.(string),
+		UserId:    userId,
+	}, nil
+}
+
+func VerifyAccessToken(r map[string]string) (jwt.Token, error) {
 	tokenString := ExtractToken(r)
 	return jwt.ParseString(tokenString,
 		jwt.WithVerify(jwa.HS256, []byte(os.Getenv("ACCESS_SECRET"))),
@@ -74,35 +135,19 @@ func VerifyToken(r *http.Request) (jwt.Token, error) {
 	)
 }
 
+func VerifyRefreshToken(r map[string]string) (jwt.Token, error) {
+	tokenString := r["refresh_token"]
+	return jwt.ParseString(tokenString,
+		jwt.WithVerify(jwa.HS256, []byte(os.Getenv("REFRESH_SECRET"))),
+		jwt.WithValidate(true),
+	)
+}
+
 //get the token from the request body
-func ExtractToken(r *http.Request) string {
-	bearToken := r.Header.Get("Authorization")
-	strArr := strings.Split(bearToken, " ")
-	if len(strArr) == 2 {
+func ExtractToken(r map[string]string) string {
+	bearToken := string(r["Authorization"])
+	if strArr := strings.Split(bearToken, " "); len(strArr) == 2 {
 		return strArr[1]
 	}
 	return ""
-}
-
-func (t *TokenService) ExtractTokenMetadata(r *http.Request) (*entity.AccessDetails, error) {
-	token, err := VerifyToken(r)
-	if err != nil {
-		return nil, err
-	}
-	accessUuid, ok := token.Get("access_uuid")
-	if !ok {
-		return nil, err
-	}
-	userIdString, ok := token.Get("user_id")
-	if !ok {
-		return nil, err
-	}
-	userId, err := strconv.ParseUint(fmt.Sprintf("%.f", userIdString), 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	return &entity.AccessDetails{
-		TokenUuid: accessUuid.(string),
-		UserId:    userId,
-	}, nil
 }

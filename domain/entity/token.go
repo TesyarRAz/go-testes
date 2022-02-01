@@ -5,6 +5,11 @@ type AccessDetails struct {
 	UserId    uint64
 }
 
+type RefreshDetails struct {
+	TokenUuid string
+	UserId    uint64
+}
+
 type TokenDetails struct {
 	AccessToken  string
 	RefreshToken string

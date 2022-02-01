@@ -75,13 +75,17 @@ func main() {
 	app.Use(middleware.CORSMiddleware())
 
 	app.Get("/users", users.Get)
+
 	app.Post("/login", auth.Login)
+	app.Post("/register", auth.Register)
+	app.Post("/logout", auth.Logout)
+	app.Post("/refresh", auth.Refresh)
 
-	appPort := os.Getenv("APP_PORT")
+	port := os.Getenv("APP_PORT")
 
-	if appPort == "" {
-		appPort = "3000"
+	if port == "" {
+		port = "3000"
 	}
 
-	log.Fatal(app.Listen(":" + appPort))
+	log.Fatal(app.Listen(":" + port))
 }
